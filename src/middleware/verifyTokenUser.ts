@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verify } from 'jsonwebtoken';
 
+
 export const verifyTokenUser = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
 

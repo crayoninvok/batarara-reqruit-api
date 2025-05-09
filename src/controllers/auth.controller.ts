@@ -28,8 +28,20 @@ export class AuthController {
       const salt = await genSalt(10);
       const hashedPassword = await hash(password, salt);
 
+      const avatarUrl =
+        avatar && avatar.trim() !== ""
+          ? avatar
+          : `https://i.pravatar.cc/150?img=${
+              Math.floor(Math.random() * 70) + 1
+            }`;
+
       const newUser = await prisma.user.create({
-        data: { email, name, password: hashedPassword, avatar },
+        data: {
+          email,
+          name,
+          password: hashedPassword,
+          avatar: avatarUrl,
+        },
       });
 
       // Compile the welcome email template
@@ -39,13 +51,13 @@ export class AuthController {
       const jwtToken = sign({ id: newUser.id }, process.env.JWT_KEY!, {
         expiresIn: "1d",
       });
-      const verifyLink = `http://localhost:8000/api/auth/verifyuser/${jwtToken}`;
-
+      const verifyLink = `${process.env.BASE_URL_FE}/verify-email/${jwtToken}`;
       const html = compiledTemplate({
         name,
         email,
         verifyLink,
       });
+
       // Send email
       await transporter.sendMail({
         from: `"Welcome Team" <${process.env.EMAIL_USER}>`,
@@ -64,7 +76,7 @@ export class AuthController {
         },
       });
     } catch (err) {
-      console.error(err);
+      console.error("Register error:", err);
       res.status(500).json({ message: "Registration failed" });
     }
   };
@@ -72,23 +84,23 @@ export class AuthController {
   loginUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password } = req.body;
-
+  
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         res.status(404).json({ message: "User not found" });
         return;
       }
-
+  
       const valid = await compare(password, user.password);
       if (!valid) {
         res.status(401).json({ message: "Incorrect password" });
         return;
       }
-
+  
       const token = sign({ id: user.id, type: "user" }, process.env.JWT_KEY!, {
         expiresIn: "1d",
       });
-
+  
       res.status(200).json({
         message: "Login successful",
         token,
@@ -97,18 +109,19 @@ export class AuthController {
           email: user.email,
           name: user.name,
           role: user.role,
+          avatar: user.avatar, // Include the avatar field
+          isVerify: user.isVerify // Optionally include other useful fields
         },
       });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Login failed" });
     }
-  };
+  }
 
   loginAdmin = async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password } = req.body;
-
       const admin = await prisma.user.findFirst({
         where: { email, role: "ADMIN" },
       });
@@ -148,12 +161,7 @@ export class AuthController {
   verifyUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { token } = req.params;
-  
-      console.log("🔑 Token received:", token);
-  
       const decoded: any = verify(token, process.env.JWT_KEY!);
-      console.log("✅ Decoded payload:", decoded);
-  
       const user = await prisma.user.findUnique({ where: { id: decoded.id } });
   
       if (!user) {
@@ -161,20 +169,23 @@ export class AuthController {
         return;
       }
   
+      // Jika sudah diverifikasi, langsung redirect ke login
       if (user.isVerify) {
-        res.status(400).json({ message: "User is already verified" });
+        res.redirect(`${process.env.BASE_URL_FE}/login`);
         return;
       }
   
+      // Update status isVerify = true
       await prisma.user.update({
         where: { id: user.id },
         data: { isVerify: true, verificationToken: null },
       });
   
-      res.status(200).json({ message: "Account verified successfully!" });
+      // Redirect ke login page setelah berhasil verifikasi
+      res.redirect(`${process.env.BASE_URL_FE}/login`);
     } catch (err) {
       console.error("❌ Verification error:", err);
-      res.status(400).json({ message: "Invalid or expired token" });
+      res.redirect(`${process.env.BASE_URL_FE}/verify-failed`);
     }
   };
 }
