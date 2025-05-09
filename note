@@ -1,0 +1,10 @@
+I want to create the backend of the company profile recruitment using express.js, supabase, postgresql, prisma orm and typescript.
+Can you create the model first there is 2 role admin and user. User can register and also update their profile update the certificate too and also can apply the job.
+Admin can see all the applied job.
+
+
+# Connect to Supabase via connection pooling
+DATABASE_URL="postgresql://postgres.dbshklltymmrdhhovegb:batara123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection to the database. Used for migrations
+DIRECT_URL="postgresql://postgres.dbshklltymmrdhhovegb:batara123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
